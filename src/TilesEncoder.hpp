@@ -26,6 +26,11 @@ public:
     void configure(JpegConfigure config);
 
     /**
+     * Register progress callback
+     */
+    void setProgressCallback(ProgressCallback callback);
+
+    /**
      * Start to do work, this whole process will run synchronize and use callback to communicate
      * with caller constantly.
      */
@@ -35,6 +40,7 @@ private:
     Configure mConfig;
     TileGenerator mGenerator;
     ByteEncoder mEncoder;
+    ProgressCallback mProgressCallback;
 
     std::unique_ptr<JpegEncoder> mJpegEncoder;  // TODO
 };

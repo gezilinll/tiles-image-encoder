@@ -97,6 +97,9 @@ int main() {
             return sharedPixels;
         },
         [&](uint8_t oneByte) { fputc(oneByte, file); });
+    encoder.setProgressCallback([&](float progress) {
+        printf("current progress:%f\n", progress);
+    });
     JpegConfigure configure;
     configure.width = imageData->width * 20;
     configure.height = imageData->height * 20;
