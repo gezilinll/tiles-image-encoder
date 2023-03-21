@@ -1,5 +1,5 @@
 //@ts-ignore
-import { ByteEncoder, TileGenerator } from "./Configure";
+import { ByteEncoder, JpegConfigure, ProgressCallback, TileGenerator } from "./Configure";
 import Module from "./wasm/tilesimageencoder";
 
 export class TilesImageEncoder {
@@ -35,5 +35,17 @@ export class TilesImageEncoder {
 
     constructor(generator: TileGenerator, encoder: ByteEncoder) {
         this._encoder = TilesImageEncoder.module.makeEncoder(generator, encoder);
+    }
+
+    set progressCallback(callback: ProgressCallback) {
+        this._encoder.setProgressCallback(callback);
+    }
+
+    configJPEG(config: JpegConfigure) {
+        this._encoder.configJPEG(config);
+    }
+
+    execute() {
+        this._encoder.execute();
     }
 }
