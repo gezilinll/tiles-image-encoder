@@ -41,7 +41,7 @@ void TilesEncoder::execute() {
     float processed = 0;
     while (true) {
         if (mProgressCallback) {
-            mProgressCallback(processed / totalTiles);
+            mProgressCallback(std::min(0.99f, processed / totalTiles));
         }
         if (yIndex >= mConfig.height) {
             break;
@@ -54,4 +54,8 @@ void TilesEncoder::execute() {
     }
 
     mJpegEncoder->writeTail();
+
+    if (mProgressCallback) {
+        mProgressCallback(1.0);
+    }
 }

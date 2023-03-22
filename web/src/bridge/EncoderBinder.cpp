@@ -18,6 +18,8 @@ public:
             std::bind(&TilesImageEncoder::jsCallbackFillPixels, this, std::placeholders::_1,
                       std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
             std::bind(&TilesImageEncoder::jsCallbackEncodeByte, this, std::placeholders::_1));
+        mEncoder->setProgressCallback(
+            std::bind(&TilesImageEncoder::jsCallbackProgress, this, std::placeholders::_1));
     }
 
     void configJPEG(emscripten::val obj) {
