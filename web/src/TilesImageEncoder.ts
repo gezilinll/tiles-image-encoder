@@ -4,6 +4,7 @@ import Module from "./wasm/tilesimageencoder";
 
 export class TilesImageEncoder {
     private _encoder: any = undefined;
+    private _generator: TileGenerator;
     private static module: any = undefined;
     private static _wasmPath = "http://rqm1nmwwk.hn-bkt.clouddn.com/InfiniteCanvas.wasm";
 
@@ -33,12 +34,9 @@ export class TilesImageEncoder {
         });
     }
 
-    constructor(generator: TileGenerator, encoder: ByteEncoder) {
-        this._encoder = TilesImageEncoder.module.makeEncoder(generator, encoder);
-    }
-
-    set progressCallback(callback: ProgressCallback) {
-        this._encoder.setProgressCallback(callback);
+    constructor(generator: TileGenerator, encoder: ByteEncoder, progress: ProgressCallback) {
+        this._generator = generator;
+        this._encoder = TilesImageEncoder.module.makeEncoder(this._fillPixelsCallback.bind(this), encoder, progress);
     }
 
     configJPEG(config: JpegConfigure) {
@@ -47,5 +45,12 @@ export class TilesImageEncoder {
 
     execute() {
         this._encoder.execute();
+    }
+
+    private _fillPixelsCallback(x: number, y: number, width: number, height: number) {
+        let buffer = this._generator(x, y, width, height);
+        let ptr = TilesImageEncoder.module._malloc(buffer.length);
+        TilesImageEncoder.module.HEAPU8.set(buffer, ptr);
+        return ptr;
     }
 }

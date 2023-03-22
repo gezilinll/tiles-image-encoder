@@ -24,9 +24,7 @@ void TilesEncoder::configure(JpegConfigure config) {
     }
 }
 
-void TilesEncoder::setProgressCallback(ProgressCallback callback) {
-    mProgressCallback = callback;
-}
+void TilesEncoder::setProgressCallback(ProgressCallback callback) { mProgressCallback = callback; }
 
 void TilesEncoder::execute() {
     if (mConfig.width <= 0 || mConfig.height <= 0) {
