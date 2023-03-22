@@ -6,12 +6,14 @@ export class TilesImageEncoder {
     private _encoder: any = undefined;
     private _generator: TileGenerator;
     private static module: any = undefined;
-    private static _wasmPath = "http://rqm1nmwwk.hn-bkt.clouddn.com/InfiniteCanvas.wasm";
 
-    static async init() {
+    static async init(locateFile?: string) {
         return new Promise(async (resolve, reject) => {
             const instance = await Module({
                 locateFile: (path: string) => {
+                    if (locateFile) {
+                        return locateFile;
+                    }
                     return path;
                 },
             }).then((module: typeof Module) => {

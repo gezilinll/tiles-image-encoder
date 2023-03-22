@@ -1,0 +1,13 @@
+{
+  "name": "tiles-image-encoder",
+  "version": "0.0.4",
+  "description": "SUPER SIZE image encoder, which can avoid OOM issue",
+  "main": "tiles-image-encoder.js",
+  "repository": "https://github.com/gezilinll/tiles-image-encoder",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "gezilinll",
+  "license": "MIT"
+}

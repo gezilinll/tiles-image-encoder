@@ -1,14 +1,16 @@
 {
   "name": "tiles-image-encoder",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "SUPER SIZE image encoder, which can avoid OOM issue",
-  "main": "./src/TilesImageEncoder.ts",
+  "main": "./src/index.ts",
   "scripts": {
-    "dev": "NODE_OPTIONS=--max_old_space_size=2048 vite"
+    "dev": "NODE_OPTIONS=--max_old_space_size=2048 vite",
+    "build": "rm -rf dist && vite build --config vite.config.js && cp package.lib.json ./dist/package.json && cp ../README_web.md ./dist/README.md && rm ./dist/tiles-image-encoder.umd.js && mv ./dist/tiles-image-encoder.es.js ./dist/tiles-image-encoder.js && cp src/wasm/tilesimageencoder.wasm ./dist"
   },
   "author": "gezilinll",
   "license": "MIT",
   "devDependencies": {
+    "@rollup/plugin-typescript": "^11.0.0",
     "tslint": "^6.1.3",
     "typescript": "^4.8.4"
   },

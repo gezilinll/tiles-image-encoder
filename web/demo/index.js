@@ -1,5 +1,8 @@
-import { JpegConfigure } from "../src/Configure";
-import { TilesImageEncoder } from "../src/TilesImageEncoder";
+// import { JpegConfigure } from "../dist/dist/types/Configure";
+// import { TilesImageEncoder } from "../dist/dist/types/TilesImageEncoder";
+
+import { JpegConfigure, TilesImageEncoder } from '../dist/tiles-image-encoder';
+
 
 function downloadFile(data, filename) {
   const blob = new Blob([data], { type: 'image/jpeg' });
