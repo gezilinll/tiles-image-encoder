@@ -6,6 +6,10 @@
 #include <algorithm>
 #include "Jpeg.inl"
 
+typedef std::chrono::milliseconds ms;
+using clk = std::chrono::system_clock;
+#include <chrono>
+
 JpegEncoder::JpegEncoder(ByteEncoder encoder) : mWriter(BitWriter(encoder)) {}
 
 void JpegEncoder::configure(const JpegConfigure& config) { mConfig = config; }
@@ -164,6 +168,7 @@ void JpegEncoder::writeHeader() {
 
 void JpegEncoder::compressPixels(const uint8_t* pixels, const uint16_t width,
                                  const uint16_t height) {
+    auto beginTime = clk::now();
     // adjust quantization tables with AAN scaling factors to simplify DCT
     float scaledLuminance[8 * 8];
     float scaledChrominance[8 * 8];
@@ -187,7 +192,11 @@ void JpegEncoder::compressPixels(const uint8_t* pixels, const uint16_t width,
         // (quantLuminance  [i] * aasf[row] * aasf[column]); // lines 266-267 of jo_jpeg.cpp
         // scaledChrominance[ZigZagInv[i]] = 1 / (quantChrominance[i] * aasf[row] * aasf[column]);
     }
+    auto endTime = clk::now();
+    auto duration = std::chrono::duration_cast<ms>(endTime - beginTime);
+    printf("A:%f\n", static_cast<double>(duration.count()));
 
+    beginTime = clk::now();
     // precompute JPEG codewords for quantized DCT
     BitCode codewordsArray[2 * CodeWordLimit];  // note: quantized[i] is found at
                                                 // codewordsArray[quantized[i] + CodeWordLimit]
@@ -208,6 +217,10 @@ void JpegEncoder::compressPixels(const uint8_t* pixels, const uint16_t width,
         codewords[-value] = BitCode(mask - value, numBits);
         codewords[+value] = BitCode(value, numBits);
     }
+    endTime = clk::now();
+    duration = std::chrono::duration_cast<ms>(endTime - beginTime);
+    printf("B:%f\n", static_cast<double>(duration.count()));
+    beginTime = clk::now();
 
     // the next two variables are frequently used when checking for image borders
     const auto maxWidth = width - 1;    // "last row"
@@ -220,122 +233,130 @@ void JpegEncoder::compressPixels(const uint8_t* pixels, const uint16_t width,
     // convert from RGB to YCbCr
     float Y[8][8], Cb[8][8], Cr[8][8];
 
-    for (auto mcuY = 0; mcuY < height; mcuY += mcuSize)  // each step is either 8 or 16 (=mcuSize)
-        for (auto mcuX = 0; mcuX < width; mcuX += mcuSize) {
-            // YCbCr 4:4:4 format: each MCU is a 8x8 block - the same applies to grayscale images,
-            // too YCbCr 4:2:0 format: each MCU represents a 16x16 block, stored as 4x 8x8 Y-blocks
-            // plus 1x 8x8 Cb and 1x 8x8 Cr block)
-            for (auto blockY = 0; blockY < mcuSize;
-                 blockY += 8)  // iterate once (YCbCr444 and grayscale) or twice (YCbCr420)
-                for (auto blockX = 0; blockX < mcuSize; blockX += 8) {
-                    // now we finally have an 8x8 block ...
-                    for (auto deltaY = 0; deltaY < 8; deltaY++) {
-                        // must not exceed image borders, replicate last row/column if needed
-                        auto column = std::min(mcuX + blockX, maxWidth);
-                        auto row = std::min(mcuY + blockY + deltaY, maxHeight);
-                        for (auto deltaX = 0; deltaX < 8; deltaX++) {
-                            // find actual pixel position within the current image
-                            // the cast ensures that we don't run into multiplication overflows
-                            auto pixelPos = row * width + column;
-                            if (column < maxWidth) {
-                                column++;
-                            }
-
-                            // grayscale images have solely a Y channel which can be easily derived
-                            // from the input pixel by shifting it by 128
-                            if (!mConfig.isRGB) {
-                                Y[deltaY][deltaX] = pixels[pixelPos] - 128.f;
-                                continue;
-                            }
-
-                            // RGB: 3 bytes per pixel (whereas grayscale images have only 1 byte per
-                            // pixel)
-                            auto r = pixels[3 * pixelPos];
-                            auto g = pixels[3 * pixelPos + 1];
-                            auto b = pixels[3 * pixelPos + 2];
-
-                            // again, the JPEG standard requires Y to be shifted by 128
-                            Y[deltaY][deltaX] = rgb2y(r, g, b) - 128;
-                            // YCbCr444 is easy - the more complex YCbCr420 has to be computed about
-                            // 20 lines below in a second pass
-                            if (!mConfig.downSample) {
-                                // standard RGB-to-YCbCr conversion
-                                Cb[deltaY][deltaX] = rgb2cb(r, g, b);
-                                Cr[deltaY][deltaX] = rgb2cr(r, g, b);
-                            }
-                        }
+    // for (auto mcuY = 0; mcuY < height; mcuY += mcuSize) {  // each step is either 8 or 16
+    // (=mcuSize)
+    //     for (auto mcuX = 0; mcuX < width; mcuX += mcuSize) {
+    // YCbCr 4:4:4 format: each MCU is a 8x8 block - the same applies to grayscale images,
+    // too YCbCr 4:2:0 format: each MCU represents a 16x16 block, stored as 4x 8x8 Y-blocks
+    // plus 1x 8x8 Cb and 1x 8x8 Cr block)
+    for (auto blockY = 0; blockY < mcuSize;
+         blockY += 8)  // iterate once (YCbCr444 and grayscale) or twice (YCbCr420)
+        for (auto blockX = 0; blockX < mcuSize; blockX += 8) {
+            // now we finally have an 8x8 block ...
+            for (auto deltaY = 0; deltaY < 8; deltaY++) {
+                // must not exceed image borders, replicate last row/column if needed
+                auto column = std::min(blockX, maxWidth);
+                auto row = std::min(blockY + deltaY, maxHeight);
+                beginTime = clk::now();
+                for (auto deltaX = 0; deltaX < 8; deltaX++) {
+                    // find actual pixel position within the current image
+                    // the cast ensures that we don't run into multiplication overflows
+                    auto pixelPos = row * width + column;
+                    if (column < maxWidth) {
+                        column++;
                     }
 
-                    // encode Y channel
-                    mLastYDC = encodeBlock(mWriter, Y, scaledLuminance, mLastYDC,
-                                           mHuffmanLuminanceDC, mHuffmanLuminanceAC, codewords);
-                    // Cb and Cr are encoded about 50 lines below
-                }
+                    // grayscale images have solely a Y channel which can be easily derived
+                    // from the input pixel by shifting it by 128
+                    if (!mConfig.isRGB) {
+                        Y[deltaY][deltaX] = pixels[pixelPos] - 128.f;
+                        continue;
+                    }
 
-            // grayscale images don't need any Cb and Cr information
-            if (!mConfig.isRGB) {
-                continue;
+                    // RGB: 3 bytes per pixel (whereas grayscale images have only 1 byte per
+                    // pixel)
+                    auto r = pixels[3 * pixelPos];
+                    auto g = pixels[3 * pixelPos + 1];
+                    auto b = pixels[3 * pixelPos + 2];
+
+                    // again, the JPEG standard requires Y to be shifted by 128
+                    Y[deltaY][deltaX] = rgb2y(r, g, b) - 128;
+                    // YCbCr444 is easy - the more complex YCbCr420 has to be computed about
+                    // 20 lines below in a second pass
+                    if (!mConfig.downSample) {
+                        // standard RGB-to-YCbCr conversion
+                        Cb[deltaY][deltaX] = rgb2cb(r, g, b);
+                        Cr[deltaY][deltaX] = rgb2cr(r, g, b);
+                    }
+                }
+                endTime = clk::now();
+                duration = std::chrono::duration_cast<ms>(endTime - beginTime);
+                printf("Inner 1:%f\n", static_cast<double>(duration.count()));
             }
 
-            // ////////////////////////////////////////
-            // the following lines are only relevant for YCbCr420:
-            // average/downsample chrominance of four pixels while respecting the image borders
-            if (mConfig.downSample)
-                // iterating loop in reverse increases cache read efficiency
-                for (short deltaY = 7; mConfig.downSample && deltaY >= 0; deltaY--) {
-                    // each deltaX/Y step covers a 2x2 area column is updated inside next loop
-                    auto row = std::min(mcuY + 2 * deltaY, maxHeight);
-                    auto column = mcuX;
-                    auto pixelPos = (row * width + column) * 3;  // numComponents = 3
-
-                    // deltas (in bytes) to next row / column, must not exceed image borders
-                    auto rowStep = (row < maxHeight)
-                                       ? 3 * width
-                                       : 0;  // always numComponents*width except for bottom    line
-                    auto columnStep = (column < maxWidth)
-                                          ? 3
-                                          : 0;  // always numComponents except for rightmost pixel
-
-                    for (short deltaX = 0; deltaX < 8; deltaX++) {
-                        // let's add all four samples (2x2 area)
-                        auto right = pixelPos + columnStep;
-                        auto down = pixelPos + rowStep;
-                        auto downRight = pixelPos + columnStep + rowStep;
-
-                        // note: cast from 8 bits to >8 bits to avoid overflows when adding
-                        auto r = short(pixels[pixelPos]) + pixels[right] + pixels[down]
-                                 + pixels[downRight];
-                        auto g = short(pixels[pixelPos + 1]) + pixels[right + 1] + pixels[down + 1]
-                                 + pixels[downRight + 1];
-                        auto b = short(pixels[pixelPos + 2]) + pixels[right + 2] + pixels[down + 2]
-                                 + pixels[downRight + 2];
-
-                        // convert to Cb and Cr
-                        // I still have to divide r,g,b by 4 to get their average values
-                        Cb[deltaY][deltaX] = rgb2cb(r, g, b) / 4;
-                        // it's a bit faster if done AFTER CbCr conversion
-                        Cr[deltaY][deltaX] = rgb2cr(r, g, b) / 4;
-
-                        // step forward to next 2x2 area
-                        pixelPos += 2 * 3;  // 2 pixels => 6 bytes (2*numComponents)
-                        column += 2;
-
-                        // reached right border ?
-                        if (column >= maxWidth) {
-                            columnStep = 0;
-                            pixelPos = ((row + 1) * width - 1)
-                                       * 3;  // same as (row * width + maxWidth) * numComponents =>
-                                             // current's row last pixel
-                        }
-                    }
-                }  // end of YCbCr420 code for Cb and Cr
-
-            // encode Cb and Cr
+            // encode Y channel
+            mLastYDC = encodeBlock(mWriter, Y, scaledLuminance, mLastYDC, mHuffmanLuminanceDC,
+                                   mHuffmanLuminanceAC, codewords);
+            // Cb and Cr are encoded about 50 lines below
             mLastCbDC = encodeBlock(mWriter, Cb, scaledChrominance, mLastCbDC,
                                     mHuffmanChrominanceDC, mHuffmanChrominanceAC, codewords);
             mLastCrDC = encodeBlock(mWriter, Cr, scaledChrominance, mLastCrDC,
                                     mHuffmanChrominanceDC, mHuffmanChrominanceAC, codewords);
         }
+
+    // // grayscale images don't need any Cb and Cr information
+    // if (!mConfig.isRGB) {
+    //     continue;
+    // }
+
+    // // ////////////////////////////////////////
+    // // the following lines are only relevant for YCbCr420:
+    // // average/downsample chrominance of four pixels while respecting the image borders
+    // if (mConfig.downSample) {
+    //     // iterating loop in reverse increases cache read efficiency
+    //     for (short deltaY = 7; mConfig.downSample && deltaY >= 0; deltaY--) {
+    //         // each deltaX/Y step covers a 2x2 area column is updated inside next loop
+    //         auto row = std::min(mcuY + 2 * deltaY, maxHeight);
+    //         auto column = mcuX;
+    //         auto pixelPos = (row * width + column) * 3;  // numComponents = 3
+
+    //         // deltas (in bytes) to next row / column, must not exceed image borders
+    //         auto rowStep = (row < maxHeight)
+    //                            ? 3 * width
+    //                            : 0;  // always numComponents*width except for bottom    line
+    //         auto columnStep = (column < maxWidth)
+    //                               ? 3
+    //                               : 0;  // always numComponents except for rightmost pixel
+
+    //         for (short deltaX = 0; deltaX < 8; deltaX++) {
+    //             // let's add all four samples (2x2 area)
+    //             auto right = pixelPos + columnStep;
+    //             auto down = pixelPos + rowStep;
+    //             auto downRight = pixelPos + columnStep + rowStep;
+
+    //             // note: cast from 8 bits to >8 bits to avoid overflows when adding
+    //             auto r = short(pixels[pixelPos]) + pixels[right] + pixels[down]
+    //                      + pixels[downRight];
+    //             auto g = short(pixels[pixelPos + 1]) + pixels[right + 1] + pixels[down + 1]
+    //                      + pixels[downRight + 1];
+    //             auto b = short(pixels[pixelPos + 2]) + pixels[right + 2] + pixels[down + 2]
+    //                      + pixels[downRight + 2];
+
+    //             // convert to Cb and Cr
+    //             // I still have to divide r,g,b by 4 to get their average values
+    //             Cb[deltaY][deltaX] = rgb2cb(r, g, b) / 4;
+    //             // it's a bit faster if done AFTER CbCr conversion
+    //             Cr[deltaY][deltaX] = rgb2cr(r, g, b) / 4;
+
+    //             // step forward to next 2x2 area
+    //             pixelPos += 2 * 3;  // 2 pixels => 6 bytes (2*numComponents)
+    //             column += 2;
+
+    //             // reached right border ?
+    //             if (column >= maxWidth) {
+    //                 columnStep = 0;
+    //                 pixelPos = ((row + 1) * width - 1)
+    //                            * 3;  // same as (row * width + maxWidth) * numComponents =>
+    //                                  // current's row last pixel
+    //             }
+    //         }
+    //     }  // end of YCbCr420 code for Cb and Cr
+    // }
+    // }
+    // }
+    endTime = clk::now();
+    duration = std::chrono::duration_cast<ms>(endTime - beginTime);
+    printf("LAST:%f\n", static_cast<double>(duration.count()));
 }
 
 void JpegEncoder::writeTail() {

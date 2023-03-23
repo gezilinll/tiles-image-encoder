@@ -28,6 +28,7 @@ struct Configure {
     ImageFormat format = ImageFormat::JPEG;  // target format
     uint16_t width = 0;                      // target width, must > 0
     uint16_t height = 0;                     // target height, must > 0
+    uint16_t tileHeight = 0;                 // every tile height, default = 8, this value must be multiple of 8 or Configure.height
 };
 
 struct JpegConfigure : Configure {

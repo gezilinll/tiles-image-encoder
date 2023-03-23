@@ -27,6 +27,7 @@ public:
         configure.width = obj["width"].as<uint16_t>();
         configure.height = obj["height"].as<uint16_t>();
         configure.quality = obj["quality"].as<uint8_t>();
+        configure.tileHeight = obj["tileHeight"].as<uint16_t>();
         configure.downSample = obj["downSample"].as<bool>();
         configure.isRGB = obj["isRGB"].as<bool>();
         configure.comment = obj["comment"].as<std::string>();

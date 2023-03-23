@@ -50,9 +50,11 @@ export class TilesImageEncoder {
     }
 
     private _fillPixelsCallback(x: number, y: number, width: number, height: number) {
+        let now = performance.now();
         let buffer = this._generator(x, y, width, height);
         let ptr = TilesImageEncoder.module._malloc(buffer.length);
         TilesImageEncoder.module.HEAPU8.set(buffer, ptr);
+        console.log("_fillPixelsCallback:" + (performance.now() - now));
         return ptr;
     }
 }

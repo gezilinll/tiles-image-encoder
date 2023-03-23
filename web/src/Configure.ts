@@ -5,6 +5,7 @@ export declare type ProgressCallback = (progress: number) => void;
 export class Configure {
     width: number = 0;
     height: number = 0;
+    tileHeight: number = 0; // every tile height, default = 8, this value must be multiple of 8 or Configure.height
 }
 
 export class JpegConfigure extends Configure {

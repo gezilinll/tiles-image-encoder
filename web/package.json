@@ -1,6 +1,6 @@
 {
   "name": "tiles-image-encoder",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "SUPER SIZE image encoder, which can avoid OOM issue",
   "main": "./src/index.ts",
   "scripts": {
