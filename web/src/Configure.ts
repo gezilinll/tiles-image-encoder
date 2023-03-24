@@ -1,6 +1,6 @@
 export declare type TileGenerator = (x: number, y: number, width: number, height: number) => Uint8Array;
-export declare type ByteEncoder = (oneByte: number) => void;
 export declare type ProgressCallback = (progress: number) => void;
+export declare type CompressedCallback = (buffer: ArrayBuffer) => void;
 
 export class Configure {
     width: number = 0;

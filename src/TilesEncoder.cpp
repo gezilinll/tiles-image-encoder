@@ -36,7 +36,7 @@ void TilesEncoder::execute() {
 
     mJpegEncoder->writeHeader();
 
-    uint16_t yIndex = 0;
+    uint32_t yIndex = 0;
     float totalTiles = std::ceil(mConfig.height / 8.0);
     float processed = 0;
     while (true) {
@@ -46,9 +46,11 @@ void TilesEncoder::execute() {
         if (yIndex >= mConfig.height) {
             break;
         }
-        int height = std::min(8, mConfig.height - yIndex);
+
+        int height = std::min(static_cast<uint32_t>(8), mConfig.height - yIndex);
         auto pixels = mGenerator(0, yIndex, mConfig.width, height);
         mJpegEncoder->compressPixels(pixels.get(), mConfig.width, height);
+
         yIndex += height;
         processed++;
     }

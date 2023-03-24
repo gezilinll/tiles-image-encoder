@@ -15,7 +15,7 @@ using ByteEncoder = std::function<void(uint8_t oneByte)>;
 // callback that request for new tile's pixels to compress
 // returned pixels stored in RGB format or grayscale, stored from upper-left to lower-right
 using TileGenerator
-    = std::function<std::shared_ptr<uint8_t>(uint16_t x, uint16_t y, uint16_t w, uint16_t h)>;
+    = std::function<std::shared_ptr<uint8_t>(uint32_t x, uint32_t y, uint32_t w, uint32_t h)>;
 // callback that report process progress, [0.0, 1.0]
 using ProgressCallback = std::function<void(float progress)>;
 
@@ -26,8 +26,8 @@ enum class ImageFormat {
 
 struct Configure {
     ImageFormat format = ImageFormat::JPEG;  // target format
-    uint16_t width = 0;                      // target width, must > 0
-    uint16_t height = 0;                     // target height, must > 0
+    uint32_t width = 0;                      // target width, must > 0
+    uint32_t height = 0;                     // target height, must > 0
 };
 
 struct JpegConfigure : Configure {

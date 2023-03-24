@@ -37,6 +37,7 @@ echo "============================================="
   -g \
   ../../src/*.cpp \
   ../../src/jpeg/*.cpp \
+  ../src/bridge/MemoryFile.cpp \
   ../src/bridge/EncoderBinder.cpp \
   -o ${NAME}.js
 )

@@ -5,15 +5,19 @@
 #include <emscripten/bind.h>
 #include <emscripten/html5.h>
 #include <emscripten/val.h>
+#include "MemoryFile.hpp"
 #include "TilesEncoder.hpp"
 
 using namespace emscripten;
 
 class TilesImageEncoder {
 public:
-    explicit TilesImageEncoder(emscripten::val generator, emscripten::val encoder,
-                               emscripten::val progress)
-        : mGeneratorCallback(generator), mEncodeByteCallback(encoder), mProgressCallback(progress) {
+    explicit TilesImageEncoder(emscripten::val generator, emscripten::val progress,
+                               emscripten::val compressed)
+        : mGeneratorCallback(generator),
+          mProgressCallback(progress),
+          mCompressedCallback(compressed) {
+        mFile = std::make_shared<MemoryFile>();
         mEncoder = std::make_shared<TilesEncoder>(
             std::bind(&TilesImageEncoder::jsCallbackFillPixels, this, std::placeholders::_1,
                       std::placeholders::_2, std::placeholders::_3, std::placeholders::_4),
@@ -22,10 +26,12 @@ public:
             std::bind(&TilesImageEncoder::jsCallbackProgress, this, std::placeholders::_1));
     }
 
+    ~TilesImageEncoder() {}
+
     void configJPEG(emscripten::val obj) {
         JpegConfigure configure;
-        configure.width = obj["width"].as<uint16_t>();
-        configure.height = obj["height"].as<uint16_t>();
+        configure.width = obj["width"].as<uint32_t>();
+        configure.height = obj["height"].as<uint32_t>();
         configure.quality = obj["quality"].as<uint8_t>();
         configure.downSample = obj["downSample"].as<bool>();
         configure.isRGB = obj["isRGB"].as<bool>();
@@ -42,20 +48,27 @@ public:
         return sharedPixels;
     }
 
-    void jsCallbackProgress(float progress) { mProgressCallback(progress); }
+    void jsCallbackProgress(float progress) {
+        mProgressCallback(progress);
+        if (progress == 1.0) {
+            mCompressedCallback(reinterpret_cast<long>(mFile->getBuffer()),
+                                static_cast<long>(mFile->getLength()));
+        }
+    }
 
-    void jsCallbackEncodeByte(uint8_t oneByte) { mEncodeByteCallback(oneByte); }
+    void jsCallbackEncodeByte(uint8_t oneByte) { mFile->writeByte(oneByte); }
 
 private:
+    std::shared_ptr<MemoryFile> mFile;
     std::shared_ptr<TilesEncoder> mEncoder;
     emscripten::val mGeneratorCallback;
-    emscripten::val mEncodeByteCallback;
     emscripten::val mProgressCallback;
+    emscripten::val mCompressedCallback;
 };
 
-std::shared_ptr<TilesImageEncoder> makeEncoder(emscripten::val generator, emscripten::val encoder,
-                                               emscripten::val progress) {
-    return std::make_shared<TilesImageEncoder>(generator, encoder, progress);
+std::shared_ptr<TilesImageEncoder> makeEncoder(emscripten::val generator, emscripten::val progress,
+                                               emscripten::val compressed) {
+    return std::make_shared<TilesImageEncoder>(generator, progress, compressed);
 }
 
 EMSCRIPTEN_BINDINGS(EncoderBinder) {

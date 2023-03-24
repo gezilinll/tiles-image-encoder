@@ -1,10 +1,11 @@
 //@ts-ignore
-import { ByteEncoder, JpegConfigure, ProgressCallback, TileGenerator } from "./Configure";
+import { CompressedCallback, JpegConfigure, ProgressCallback, TileGenerator } from "./Configure";
 import Module from "./wasm/tilesimageencoder";
 
 export class TilesImageEncoder {
     private _encoder: any = undefined;
     private _generator: TileGenerator;
+    private _compressed: CompressedCallback;
     private static module: any = undefined;
 
     static async init(locateFile?: string) {
@@ -36,9 +37,11 @@ export class TilesImageEncoder {
         });
     }
 
-    constructor(generator: TileGenerator, encoder: ByteEncoder, progress: ProgressCallback) {
+    constructor(generator: TileGenerator, progress: ProgressCallback, compressed: CompressedCallback) {
         this._generator = generator;
-        this._encoder = TilesImageEncoder.module.makeEncoder(this._fillPixelsCallback.bind(this), encoder, progress);
+        this._compressed = compressed;
+        this._encoder = TilesImageEncoder.module.makeEncoder(
+            this._fillPixelsCallback.bind(this), progress, this._allCompressedCallback.bind(this));
     }
 
     configJPEG(config: JpegConfigure) {
@@ -54,5 +57,11 @@ export class TilesImageEncoder {
         let ptr = TilesImageEncoder.module._malloc(buffer.length);
         TilesImageEncoder.module.HEAPU8.set(buffer, ptr);
         return ptr;
+    }
+
+    private _allCompressedCallback(bufferPtr: number, bufferLength: number) {
+        let imageBuffer = new Uint8Array(TilesImageEncoder.module.HEAPU8.subarray(bufferPtr, bufferPtr + bufferLength));
+        this._encoder.delete();
+        this._compressed(imageBuffer);
     }
 }

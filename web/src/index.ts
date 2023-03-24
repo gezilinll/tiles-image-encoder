@@ -1,2 +1,2 @@
-export { Configure, JpegConfigure } from './Configure'
-export { TilesImageEncoder } from './TilesImageEncoder'
+export * from './Configure'
+export * from './TilesImageEncoder'

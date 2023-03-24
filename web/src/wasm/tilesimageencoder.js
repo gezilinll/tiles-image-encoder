@@ -3619,6 +3619,11 @@ var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
 };
 
 /** @type {function(...*):?} */
+var _malloc = Module["_malloc"] = function() {
+  return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
 var _free = Module["_free"] = function() {
   return (_free = Module["_free"] = Module["asm"]["free"]).apply(null, arguments);
 };
@@ -3636,11 +3641,6 @@ var ___embind_register_native_and_builtin_types = Module["___embind_register_nat
 /** @type {function(...*):?} */
 var ___errno_location = Module["___errno_location"] = function() {
   return (___errno_location = Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _malloc = Module["_malloc"] = function() {
-  return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */
@@ -3729,10 +3729,10 @@ function invoke_viiii(index,a1,a2,a3,a4) {
   }
 }
 
-function invoke_ii(index,a1) {
+function invoke_vi(index,a1) {
   var sp = stackSave();
   try {
-    return getWasmTableEntry(index)(a1);
+    getWasmTableEntry(index)(a1);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0) throw e;
@@ -3740,10 +3740,10 @@ function invoke_ii(index,a1) {
   }
 }
 
-function invoke_vi(index,a1) {
+function invoke_ii(index,a1) {
   var sp = stackSave();
   try {
-    getWasmTableEntry(index)(a1);
+    return getWasmTableEntry(index)(a1);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0) throw e;
